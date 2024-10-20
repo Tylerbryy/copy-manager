@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Notion-style Copy Notification</title>
+    <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/framer-motion@4.1.17/dist/framer-motion.min.js"></script>
+  </head>
+  <body class="bg-transparent">
+    <div id="root"></div>
+    <script type="text/babel">
+      const { useState, useEffect, useCallback, useMemo } = React;
+      const { ipcRenderer } = require('electron');
+      const { motion, AnimatePresence } = window.Motion;
+
+      function App() {
+        const [copiedText, setCopiedText] = useState('');
+        const [isVisible, setIsVisible] = useState(false);
+        const [copyCount, setCopyCount] = useState(0);
+
+        const handleClipboardChange = useCallback((event, text) => {
+          setCopiedText(text.length > 40 ? text.slice(0, 37) + '...' : text);
+          setIsVisible(true);
+          setCopyCount(prevCount => prevCount + 1);
+        }, []);
+
+        useEffect(() => {
+          ipcRenderer.on('clipboard-change', handleClipboardChange);
+          return () => {
+            ipcRenderer.removeListener('clipboard-change', handleClipboardChange);
+          };
+        }, [handleClipboardChange]);
+
+        useEffect(() => {
+          if (isVisible) {
+            const timer = setTimeout(() => {
+              setIsVisible(false);
+              ipcRenderer.send('hide-window'); // Send message to hide the window
+            }, 2500);
+            return () => clearTimeout(timer);
+          }
+        }, [isVisible]);
+
+        const pasteShortcut = useMemo(() => 
+          navigator.platform.indexOf('Mac') > -1 ? '⌘V' : 'Ctrl+V'
+        , []);
+
+        return (
+          <AnimatePresence>
+            {isVisible && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.2 }}
+                className="bg-white dark:bg-gray-800 text-gray-800 dark:text-white p-3 rounded-lg shadow-lg max-w-sm border border-gray-200 dark:border-gray-700"
+              >
+                <div className="flex items-center space-x-3">
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    className="flex-shrink-0 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </motion.div>
+                  <div className="flex-grow">
+                    <h2 className="text-sm font-medium mb-1">Copied to clipboard</h2>
+                    <p className="text-xs text-gray-600 dark:text-gray-300 font-mono">{copiedText}</p>
+                  </div>
+                </div>
+                <motion.div
+                  className="mt-2 h-0.5 bg-green-500 rounded-full"
+                  initial={{ width: "0%" }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 2.5 }}
+                />
+                <div className="mt-2 flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
+                  <span>Copy count: {copyCount}</span>
+                  <span>{pasteShortcut} to paste</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        );
+      }
+
+      ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+  </body>
+</html>

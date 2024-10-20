@@ -1,0 +1,14 @@
+{
+    "name": "notion-style-copy-notification",
+    "version": "1.0.0",
+    "description": "A Notion-style copy notification app",
+    "main": "main.js",
+    "scripts": {
+      "start": "electron .",
+      "start-prod": "NODE_ENV=production electron ."
+    },
+    "dependencies": {
+      "electron": "^13.0.0",
+      "electron-clipboard-watcher": "^1.0.1"
+    }
+  }
