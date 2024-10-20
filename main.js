@@ -4,6 +4,7 @@ const path = require('path');
 const clipboardWatcher = require('electron-clipboard-watcher');
 
 let mainWindow;
+let lastClipboardText = '';
 
 function createWindow() {
   const primaryDisplay = screen.getPrimaryDisplay();
@@ -27,10 +28,17 @@ function createWindow() {
 
   mainWindow.loadFile('index.html');
   mainWindow.setVisibleOnAllWorkspaces(true);
-  mainWindow.setPosition(width - 380, height - 140);
+  // Change the position to top right
+  mainWindow.setPosition(width - 380, 20);
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.showInactive(); // Show the window without focusing it
+  });
+
+  // Add error handling for window loading
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error('Failed to load window:', errorDescription);
+    app.quit();
   });
 }
 
@@ -40,7 +48,8 @@ app.whenReady().then(() => {
   clipboardWatcher({
     watchDelay: 100,
     onTextChange: (text) => {
-      if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow && !mainWindow.isDestroyed() && text !== lastClipboardText) {
+        lastClipboardText = text;
         mainWindow.showInactive(); // Show the window when there's a clipboard change
         mainWindow.webContents.send('clipboard-change', text);
       }
@@ -59,4 +68,10 @@ ipcMain.on('hide-window', () => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.hide();
   }
+});
+
+// Add a global error handler
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught exception:', error);
+  app.quit();
 });
